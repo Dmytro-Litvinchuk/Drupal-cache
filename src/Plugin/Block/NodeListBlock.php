@@ -66,33 +66,43 @@ class NodeListBlock extends BlockBase implements ContainerFactoryPluginInterface
     $query->sort('created', 'DESC');
     $query->range(0, 10);
     $nids = $query->execute();
-    // Load all nodes.
-    $entity_type = 'node';
-    $storage = $this->entityManager->getStorage($entity_type);
-    $node = $storage->loadMultiple($nids);
-    /**
-    $view_mode = 'rss';
-    $view_builder = $this->entityManager->getViewBuilder($entity_type);
-    $build['content'] = $view_builder->viewMultiple($node, $view_mode);
-     */
-    // Get all titles and tags for cache.
-    foreach ($nids as $nid) {
-      $titles[$nid] = $node[$nid]->label();
-      $tags[] = 'node:' . $nid;
+    // Check exist.
+    if (isset($nids)) {
+      // Load all nodes.
+      $entity_type = 'node';
+      $storage = $this->entityManager->getStorage($entity_type);
+      $node = $storage->loadMultiple($nids);
+      /**
+       * Get nodes, but they have own cache.
+       * $view_mode = 'rss';
+       * $view_builder = $this->entityManager->getViewBuilder($entity_type);
+       * $build['content'] = $view_builder->viewMultiple($node, $view_mode);
+       */
+      // Get all titles and tags for cache.
+      foreach ($nids as $nid) {
+        $titles[$nid] = $node[$nid]->label();
+        $tags[] = 'node:' . $nid;
+      }
+      $tags[] = 'node_list';
+      $build['content'] = [
+        '#theme' => 'item_list',
+        '#list_type' => 'ul',
+        '#title' => 'Last Nodes',
+        '#items' => $titles,
+      ];
+      // Cache permanent by default.
+      $build['#cache'] = [
+        'tags' => $tags,
+        // Or user.roles:role.
+        'contexts' => ['user.roles'],
+      ];
+      return $build;
     }
-    $tags[] = 'node_list';
-    $build['content'] = [
-      '#theme' => 'item_list',
-      '#list_type' => 'ul',
-      '#title' => 'Last Nodes',
-      '#items' => $titles,
-    ];
-    // Cache permanent by default.
-    $build['#cache'] = [
-      'tags' => $tags,
-      'contexts' => ['user.roles:role'],
-    ];
-    return $build;
+    else {
+      return [
+        '#markup' => $this->t('You did not create any nodes!'),
+      ];
+    }
   }
 
 }
