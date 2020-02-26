@@ -2,10 +2,8 @@
 
 namespace Drupal\simple_cache\Plugin\Block;
 
-use Drupal\Core\Annotation\Translation;
-use Drupal\Core\Block\Annotation\Block;
 use Drupal\Core\Block\BlockBase;
-use Drupal\Core\Cache\CacheableDependencyInterface;
+use Drupal\Core\Cache\Cache;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -19,7 +17,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  *   category = @Translation("Custom"),
  * )
  */
-class NodeListBlock extends BlockBase implements ContainerFactoryPluginInterface, CacheableDependencyInterface {
+class NodeListBlock extends BlockBase implements ContainerFactoryPluginInterface {
 
   /**
    * @var \Drupal\Core\Entity\EntityTypeManagerInterface
@@ -72,30 +70,9 @@ class NodeListBlock extends BlockBase implements ContainerFactoryPluginInterface
       $entity_type = 'node';
       $storage = $this->entityManager->getStorage($entity_type);
       $node = $storage->loadMultiple($nids);
-      /**
-       * Get nodes, but they have own cache.
-       * $view_mode = 'rss';
-       * $view_builder = $this->entityManager->getViewBuilder($entity_type);
-       * $build['content'] = $view_builder->viewMultiple($node, $view_mode);
-       */
-      // Get all titles and tags for cache.
-      foreach ($nids as $nid) {
-        $titles[$nid] = $node[$nid]->label();
-        $tags[] = 'node:' . $nid;
-      }
-      $tags[] = 'node_list';
-      $build['content'] = [
-        '#theme' => 'item_list',
-        '#list_type' => 'ul',
-        '#title' => 'Last Nodes',
-        '#items' => $titles,
-      ];
-      // Cache permanent by default.
-      $build['#cache'] = [
-        'tags' => $tags,
-        // Or user.roles:role.
-        'contexts' => ['user.roles'],
-      ];
+      $view_mode = 'rss';
+      $view_builder = $this->entityManager->getViewBuilder($entity_type);
+      $build = $view_builder->viewMultiple($node, $view_mode);
       return $build;
     }
     else {
@@ -103,6 +80,22 @@ class NodeListBlock extends BlockBase implements ContainerFactoryPluginInterface
         '#markup' => $this->t('You did not create any nodes!'),
       ];
     }
+  }
+
+  /**
+   * @inheritDoc
+   */
+  public function getCacheTags() {
+    $old_tags = parent::getCacheTags();
+    $new_tag = ['node_list'];
+    return Cache::mergeTags($old_tags, $new_tag);
+  }
+
+  /**
+   * @inheritDoc
+   */
+  public function getCacheContexts() {
+    return Cache::mergeContexts(parent::getCacheContexts(), ['user.roles']);
   }
 
 }
